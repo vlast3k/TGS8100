@@ -5,14 +5,11 @@ void requestEvent() {
 
 void receiveEvent(int howMany) {
   receivedI2C = true;
-//  i2cLog+="|";
   uint8_t msg[20];
   for (int i=0; i < howMany; i++) { // loop through all but the last
     msg[i] = Wire.read(); 
-  //  i2cLog += String(msg[i], HEX);
   }
   if (msg[howMany - 1] != 42) {
-   // i2cLog += "ERR";
     return;
   }
   switch (msg[0]) {
@@ -29,6 +26,8 @@ void setTempHum(uint8_t *msg) {
   
 }
 void onMsgReset() {
+  Serial << F("Resetting")<< endl;
+  Serial.flush();
   clearEEPROM();
   asm volatile ("  jmp 0");  
 }

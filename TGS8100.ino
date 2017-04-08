@@ -8,9 +8,11 @@
 
 #define MSG_SET_TEMP_HUM 0x1
 #define MSG_RESET 0x2
-#define ITERATIONS_CHECK 100
+#define ITERATIONS_CHECK 10
+#define START_ITER 400
 #define EE_MAX_R0_2B 0
 
+boolean startedIterations = false;
 
 uint16_t lastValue = 0;
 RunningAverage raVoc(5);
@@ -19,10 +21,10 @@ uint8_t i2cdata[20];
 
 //float cTemp = 20;
 //float cHum  = 40;
-float cTemp = 10;
-float cHum  = 77;
+float cTemp = 20;
+float cHum  = 40;
 uint16_t cMaxR0 = 120;
-double cRs;
+double cRs, cRsAdj;
 
 bool receivedI2C = false;
 
@@ -75,8 +77,8 @@ void prepareData() {
   Serial << "TempAdj: " << getTempAdj(20, cTemp) << endl;
   Serial << "HumAdj:  " << getHumAdj(40, cHum)   << endl;
   adjFactor /= (double)100;
-  double cRsAdj = cRs * adjFactor;
-  double rsr0 = cRs/cMaxR0;
+  cRsAdj = cRs * adjFactor;
+  double rsr0 = cRsAdj/cMaxR0;
   double ppm = pow(1.0F/rsr0, GRAD);
   uint16_t ppm100 = ppm*100;
   uint16_t rsu = cRs;
@@ -143,13 +145,24 @@ void goToSleep() {
 
 void onIteration() {
   if (!receivedI2C) iterations++;
+//  Serial << "stariter:" << startedIterations << ", iter: " << iterations << endl;
   receivedI2C = false;  
-  if (iterations == ITERATIONS_CHECK) {
-    iterations == 0;
-    if (cMaxR0 < (uint16_t)cRs) {
-      cMaxR0 = cRs;
-      EEPROM.put(EE_MAX_R0_2B, cMaxR0);
-    }    
+  if (!startedIterations) {
+  //Serial << "starit000er:" << startedIterations << ", iter: " << iterations << endl;
+    if (iterations == START_ITER) {
+      startedIterations = true;
+      iterations = 0;
+    }
+    return;
+  } else {
+    //Serial << "starit111er:" << startedIterations << ", iter: " << iterations << endl;
+    if (iterations > ITERATIONS_CHECK) {
+      iterations = 0;
+      if (cMaxR0 < (uint16_t)cRsAdj) {
+        cMaxR0 = cRsAdj;
+        EEPROM.put(EE_MAX_R0_2B, cMaxR0);
+      }    
+    }
   }
 }
 
@@ -180,6 +193,7 @@ double getTempAdj(double from, double to) {
   return adj;
 }
 
+#define HUM_ADJ_0_20 1.0F
 #define HUM_ADJ_20_40 0.9F
 #define HUM_ADJ_40_65 0.5F
 #define HUM_ADJ_65_85 0.3F
@@ -192,6 +206,8 @@ double getHumAdj(double from, double to) {
     inv = true;
   }
   double adj = 0;
+  Serial  << "H adj1: " << adj << endl;
+  if (from < 20) adj += max(0, (min(20.0f, to) - max(from, 0.0F)) * HUM_ADJ_0_20);
   Serial  << "H adj1: " << adj << endl;
   if (from < 40) adj += max(0, (min(40.0f, to) - max(from, 20.0F)) * HUM_ADJ_20_40);
   Serial  << "H adj2: " << adj << endl;
