@@ -15,6 +15,7 @@ void receiveEvent(int howMany) {
   switch (msg[0]) {
     case MSG_SET_TEMP_HUM: setTempHum(msg); break;
     case MSG_RESET: onMsgReset(); break;
+    case MSG_READ: performRead = true; break;
   }
 }
 
